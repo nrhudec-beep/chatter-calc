@@ -1,0 +1,960 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Stickout Chatter Calculator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111418">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: setup-sheet — input column on the left, results (tool sketch → verdict → scaled numbers → lobe chart) on the right; stacks on phones. */
+:root{
+  --paper:#eceff2; --surface:#f9fafb; --ink:#1a1e24; --ink-2:#4c5560; --ink-3:#7a838e;
+  --rule:#cbd1d8; --rule-2:#dde1e6;
+  --dykem:#2b3ca3; --dykem-wash:#dde2f7; --dykem-ink:#ffffff;
+  --steel:#9aa3ad; --steel-2:#c3c9d0; --steel-3:#e1e5e9;
+  --ok:#2c7a4b; --ok-wash:#dcefe3; --warn:#a86b12; --warn-wash:#f6ead3; --bad:#b3302a; --bad-wash:#f6dcda;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#111418; --surface:#191d22; --ink:#e3e7eb; --ink-2:#a3acb6; --ink-3:#77808b;
+  --rule:#2d343c; --rule-2:#242a31;
+  --dykem:#94a1ff; --dykem-wash:#222850; --dykem-ink:#0f1330;
+  --steel:#6e7781; --steel-2:#4a525b; --steel-3:#2b3138;
+  --ok:#5fc68c; --ok-wash:#173325; --warn:#e3ab4a; --warn-wash:#3a2c12; --bad:#f2766c; --bad-wash:#3e1b19;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#111418; --surface:#191d22; --ink:#e3e7eb; --ink-2:#a3acb6; --ink-3:#77808b;
+  --rule:#2d343c; --rule-2:#242a31;
+  --dykem:#94a1ff; --dykem-wash:#222850; --dykem-ink:#0f1330;
+  --steel:#6e7781; --steel-2:#4a525b; --steel-3:#2b3138;
+  --ok:#5fc68c; --ok-wash:#173325; --warn:#e3ab4a; --warn-wash:#3a2c12; --bad:#f2766c; --bad-wash:#3e1b19;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;border-bottom:2px solid var(--ink);padding-bottom:12px}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5vw,44px);line-height:1;letter-spacing:.01em;margin:0;text-transform:uppercase;text-wrap:balance}
+.brand h1 span{color:var(--dykem)}
+.brand p{margin:6px 0 0;color:var(--ink-2);max-width:62ch}
+.toggles{display:flex;gap:10px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:4px;overflow:hidden}
+.seg button{font:600 13px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;background:transparent;color:var(--ink);border:0;padding:9px 14px;cursor:pointer}
+.seg button+button{border-left:1.5px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--dykem);outline-offset:2px}
+
+.grid{display:grid;grid-template-columns:minmax(300px,350px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* inputs */
+.inputs{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:4px 16px 16px}
+fieldset{border:0;margin:0;padding:14px 0 4px;border-top:1px solid var(--rule-2);display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+fieldset:first-of-type{border-top:0}
+legend{font:700 13px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--dykem);padding:0;margin-bottom:10px;float:left;width:100%}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f.wide{grid-column:1/-1}
+.f>span:first-child{font-size:12.5px;color:var(--ink-2);font-weight:500}
+.in{display:flex;align-items:stretch;border:1px solid var(--rule);border-radius:4px;background:var(--paper);overflow:hidden}
+.in:focus-within{border-color:var(--dykem)}
+.in input,.in select{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:500 14px var(--f-mono);padding:7px 8px;font-variant-numeric:tabular-nums}
+.in select{font-family:var(--f-body);font-size:13.5px}
+.in em{font:normal 11.5px var(--f-mono);color:var(--ink-3);padding:0 8px;display:flex;align-items:center;border-left:1px solid var(--rule-2);white-space:nowrap}
+.hint{font-size:11.5px;color:var(--ink-3);line-height:1.35}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);grid-column:1/-1}
+details.adv{grid-column:1/-1;border-top:1px solid var(--rule-2);margin-top:6px}
+details.adv summary{cursor:pointer;font:700 13px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);padding:14px 0 8px}
+details.adv .inner{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;padding-bottom:4px}
+[data-only]{}
+
+/* results */
+.results{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:16px}
+.card h2{font:700 15px/1.1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;margin:0 0 10px;color:var(--ink)}
+.card h2 small{font:500 12px var(--f-body);letter-spacing:0;text-transform:none;color:var(--ink-3);margin-left:8px}
+.sketch svg{display:block;width:100%;height:auto}
+
+.readouts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--rule);border-radius:6px;background:var(--surface);overflow:hidden}
+.ro{padding:12px 14px;border-left:1px solid var(--rule-2);min-width:0}
+.ro:first-child{border-left:0}
+.ro .k{font:600 11.5px/1.2 var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.ro .v{font:500 20px/1.25 var(--f-mono);font-variant-numeric:tabular-nums;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro .v small{font-size:12px;color:var(--ink-2);margin-left:3px}
+@media (max-width:1100px){.readouts{grid-template-columns:repeat(3,minmax(0,1fr))}.ro:nth-child(4){border-left:0}.ro:nth-child(n+4){border-top:1px solid var(--rule-2)}}
+@media (max-width:520px){.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}.ro{border-left:0!important;border-top:1px solid var(--rule-2)}.ro:nth-child(-n+2){border-top:0}.ro:nth-child(even){border-left:1px solid var(--rule-2)!important}}
+
+.verdict{display:flex;gap:14px;align-items:flex-start;border-radius:6px;padding:14px 16px;border:1px solid var(--rule)}
+.verdict .pill{flex:none}
+.verdict p{margin:0;max-width:75ch}
+.vtxt{display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:0}
+.chart-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px 16px;margin-bottom:10px}
+.chart-head h2{margin:0}
+.seg.small button{padding:7px 10px;font-size:12px}
+.mine-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+.mine-head p{margin:0;max-width:75ch}
+table.rec.mine{min-width:0}
+table.rec.mine td:last-child{text-align:right}
+@media (max-width:520px){.mine-head{flex-direction:column;gap:8px}}
+.plot3d{width:100%;min-height:380px;margin-bottom:10px;border-radius:4px;overflow:hidden}
+.opt-in{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px}
+@media (max-width:640px){.opt-in{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.opt-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px;align-items:start}
+@media (max-width:1100px){.opt-grid{grid-template-columns:minmax(0,1fr)}}
+.optchart{display:block;width:100%;height:auto}
+.fold{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-right:8px;vertical-align:-5px;border:1px solid var(--rule);border-radius:4px;background:var(--paper);color:var(--ink-2);cursor:pointer;padding:0}
+.fold:hover{border-color:var(--ink-2);color:var(--ink)}
+.fold svg{width:12px;height:12px;transition:transform .15s ease}
+.card.collapsed .fold svg{transform:rotate(-90deg)}
+.card.collapsed>*:not(h2):not(.chart-head){display:none!important}
+.card.collapsed .chart-head>:not(h2){display:none!important}
+.card.collapsed h2,.card.collapsed .chart-head{margin:0}
+@media (prefers-reduced-motion:reduce){.fold svg{transition:none}}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+.calmsg{font-size:13.5px;color:var(--ink-2)}
+.verdict.ok{background:var(--ok-wash);border-color:var(--ok)}
+.verdict.warn{background:var(--warn-wash);border-color:var(--warn)}
+.verdict.bad{background:var(--bad-wash);border-color:var(--bad)}
+.pill{display:inline-block;font:700 12px/1 var(--f-display);letter-spacing:.1em;text-transform:uppercase;padding:6px 9px;border-radius:3px;white-space:nowrap}
+.pill.ok{background:var(--ok);color:var(--surface)}
+.pill.warn{background:var(--warn);color:var(--surface)}
+.pill.bad{background:var(--bad);color:var(--surface)}
+.pill.dy{background:var(--dykem-wash);color:var(--dykem)}
+@media (max-width:520px){.verdict{flex-direction:column;gap:8px}}
+
+.tbl-wrap{overflow-x:auto}
+table.rec{border-collapse:collapse;width:100%;min-width:520px;font-variant-numeric:tabular-nums}
+table.rec th,table.rec td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--rule-2);white-space:nowrap}
+table.rec th:first-child,table.rec td:first-child{text-align:left;color:var(--ink-2);font-weight:500}
+table.rec thead th{font:700 12px/1.2 var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);border-bottom:1.5px solid var(--ink)}
+table.rec thead th.hl{color:var(--dykem)}
+table.rec td{font-family:var(--f-mono);font-size:14px}
+table.rec td.hl{background:var(--dykem-wash);color:var(--ink);font-weight:500}
+table.rec td .d{font-size:11.5px;color:var(--ink-3);margin-left:6px}
+table.rec td .d.dn{color:var(--bad)} table.rec td .d.up{color:var(--ok)}
+.rowbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}
+.note{font-size:13px;color:var(--ink-2);margin:0;max-width:72ch}
+.btn{font:600 13px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;background:var(--dykem);color:var(--dykem-ink);border:0;border-radius:4px;padding:10px 14px;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;touch-action:manipulation;cursor:crosshair}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--ink-2);margin-top:8px}
+.legend i{display:inline-block;width:14px;height:10px;margin-right:6px;vertical-align:-1px;border-radius:2px}
+.probe{margin-top:10px;font-size:13.5px;color:var(--ink-2);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.probe b{font-family:var(--f-mono);font-weight:500;color:var(--ink)}
+
+.spots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.spot{border:1px solid var(--rule);border-radius:5px;padding:10px 12px;background:var(--paper);display:flex;flex-direction:column;gap:2px;cursor:pointer;text-align:left;color:var(--ink);font:inherit}
+.spot:hover{border-color:var(--dykem)}
+.spot .r{font:500 18px var(--f-mono)}
+.spot .s{font-size:12px;color:var(--ink-3);font-family:var(--f-mono)}
+.spot .a{font-size:13px;color:var(--ink-2)}
+.spot .pill{align-self:flex-start;margin-top:4px;font-size:10.5px;padding:4px 6px}
+
+.method{font-size:14px;color:var(--ink-2)}
+.method ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:80ch}
+.method code{font-family:var(--f-mono);font-size:12.5px}
+.warnline{font-size:12.5px;color:var(--warn);margin:0}
+@media (prefers-reduced-motion:no-preference){.verdict,.ro .v{transition:background-color .25s ease}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="brand">
+    <h1>Stickout <span>Chatter</span> Calculator</h1>
+    <p>Predicts where a long end mill or boring bar will chatter, and scales catalog feeds and speeds down to what the extra stickout can hold.</p>
+  </div>
+  <div class="toggles">
+    <div class="seg" role="group" aria-label="Tool type">
+      <button id="m-mill" data-mode="mill">End mill</button><button id="m-bore" data-mode="bore">Boring bar</button>
+    </div>
+    <div class="seg" role="group" aria-label="Units">
+      <button id="u-in" data-units="in">Inch</button><button id="u-mm" data-units="mm">Metric</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" id="t-light" data-theme-btn="light">Light</button><button type="button" id="t-dark" data-theme-btn="dark">Dark</button>
+    </div>
+  </div>
+</header>
+
+<div class="grid">
+<form class="inputs" id="form" autocomplete="off" onsubmit="return false">
+  <fieldset>
+    <legend>Tool</legend>
+    <label class="f wide"><span>Tool material</span><span class="in"><select id="toolMat" data-key="toolMat">
+      <option value="carbide">Solid carbide</option><option value="hss">HSS / cobalt</option>
+      <option value="steel">Steel bar</option><option value="heavy">Tungsten heavy metal</option></select></span></label>
+    <label class="f"><span data-lm="Tool diameter" data-lb="Bar diameter">Tool diameter</span><span class="in"><input id="D" data-key="D" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f" data-only="mill"><span>Flutes</span><span class="in"><input id="N" data-key="N" data-kind="int" type="number" step="1" min="1" max="12" inputmode="numeric"></span></label>
+    <label class="f" data-only="mill"><span>Flute length</span><span class="in"><input id="Lf" data-key="Lf" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f" data-only="bore"><span>Bore diameter</span><span class="in"><input id="boreD" data-key="boreD" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f"><span>Stickout</span><span class="in"><input id="L" data-key="L" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f" data-only="mill"><span>Neck diameter</span><span class="in"><input id="Dn" data-key="Dn" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f" data-only="mill"><span>Neck length</span><span class="in"><input id="Ln" data-key="Ln" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f" data-only="mill"><span>Flute spacing variation</span><span class="in"><input id="pitchVar" data-key="pitchVar" data-kind="num" type="number" step="0.5" min="0" max="20" inputmode="decimal"><em>± deg</em></span></label>
+    <p class="hint wide f" data-only="mill" style="grid-column:1/-1">Stickout is gauge length, holder face to tip. Leave neck length at 0 for a standard tool. Flute spacing variation is 0 for equal spacing; variable-pitch tools are typically ±2–5°. Widia variable-pitch end mills have about 4° of variation, so enter 4 for those.</p>
+    <label class="f wide"><span>Holder</span><span class="in"><select id="holder" data-key="holder">
+      <option value="shrink">Shrink fit</option><option value="hydro">Hydraulic chuck</option><option value="mchuck">Milling chuck</option>
+      <option value="er">ER collet</option><option value="side">Side-lock / set screw</option><option value="sleeve">Split sleeve or bushing</option></select></span></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Workpiece</legend>
+    <label class="f wide"><span>Material</span><span class="in"><select id="wmat" data-key="wmat"></select></span></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Your cutting conditions</legend>
+    <label class="chk"><input type="checkbox" id="mOn" data-key="mOn"> Check these conditions at the stickout above</label>
+    <label class="f"><span>Spindle speed</span><span class="in"><input id="mRpm" data-key="mRpm" data-kind="int" type="number" step="10" inputmode="numeric"><em>rpm</em></span></label>
+    <label class="f"><span>Surface speed</span><span class="in"><input id="mVc" data-dkey="mVc" type="number" step="1" inputmode="decimal"><em data-u="speed"></em></span></label>
+    <label class="f"><span data-lm="Chip load" data-lb="Feed per rev">Chip load</span><span class="in"><input id="mFz" data-key="mFz" data-kind="chip" data-fine="all" type="number" step="any" inputmode="decimal"><em data-u="chip"></em></span></label>
+    <label class="f"><span>Feed rate</span><span class="in"><input id="mFeed" data-dkey="mFeed" type="number" step="0.1" inputmode="decimal"><em data-u="feed"></em></span></label>
+    <label class="f"><span data-lm="Axial depth (ap)" data-lb="Depth of cut">Axial depth (ap)</span><span class="in"><input id="mAp" data-key="mAp" data-kind="len" data-fine="bore" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f" data-only="mill"><span>Radial width (ae)</span><span class="in"><input id="mAe" data-key="mAe" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <p class="hint" id="mHint" style="grid-column:1/-1"></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Catalog recommendation</legend>
+    <label class="f"><span>Surface speed</span><span class="in"><input id="Vc" data-key="Vc" data-kind="speed" type="number" step="any" inputmode="decimal"><em data-u="speed"></em></span></label>
+    <label class="f"><span data-lm="Chip load" data-lb="Feed per rev">Chip load</span><span class="in"><input id="fz" data-key="fz" data-kind="chip" type="number" step="any" inputmode="decimal"><em data-u="chip"></em></span></label>
+    <label class="f"><span data-lm="Axial depth (ap)" data-lb="Depth of cut">Axial depth (ap)</span><span class="in"><input id="ap" data-key="ap" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f" data-only="mill"><span>Radial width (ae)</span><span class="in"><input id="ae" data-key="ae" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <label class="f"><span>At stickout of</span><span class="in"><input id="Lref" data-key="Lref" data-kind="len" type="number" step="any" inputmode="decimal"><em data-u="len"></em></span></label>
+    <p class="hint" style="grid-column:1/-1">Enter the manufacturer's numbers and the stickout they assume (often 3×D or the standard-length version of the tool).</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Machine and limits</legend>
+    <label class="f"><span>Max spindle speed</span><span class="in"><input id="rpmMax" data-key="rpmMax" data-kind="int" type="number" step="100" inputmode="numeric"><em>rpm</em></span></label>
+    <label class="f"><span>Safety factor</span><span class="in"><input id="sf" data-key="sf" data-kind="num" type="number" step="0.05" min="0.2" max="1" inputmode="decimal"><em>× limit</em></span></label>
+    <label class="f"><span>Speed window, low</span><span class="in"><input id="wMin" data-key="wMin" data-kind="num" type="number" step="5" inputmode="numeric"><em>% cat.</em></span></label>
+    <label class="f"><span>Speed window, high</span><span class="in"><input id="wMax" data-key="wMax" data-kind="num" type="number" step="5" inputmode="numeric"><em>% cat.</em></span></label>
+    <p class="hint" style="grid-column:1/-1">The scaled speed is searched inside this band of the catalog surface speed. Depth is held to the safety factor times the predicted stability limit.</p>
+
+    <details class="adv" id="adv">
+      <summary>Dynamics and measured values</summary>
+      <div class="inner">
+        <label class="f"><span>Damping ratio ζ</span><span class="in"><input id="zeta" data-key="zeta" data-kind="num" type="number" step="0.005" inputmode="decimal"></span></label>
+        <label class="f"><span>Spindle + holder stiffness</span><span class="in"><input id="ks" data-key="ks" data-kind="stiff" type="number" step="any" inputmode="decimal"><em data-u="stiff"></em></span></label>
+        <label class="f"><span>Kt, specific cutting force</span><span class="in"><input id="Kt" data-key="Kt" data-kind="press" type="number" step="any" inputmode="decimal"><em data-u="press"></em></span></label>
+        <label class="f"><span>Kr, radial / tangential</span><span class="in"><input id="Kr" data-key="Kr" data-kind="num" type="number" step="0.01" inputmode="decimal"></span></label>
+        <label class="chk"><input type="checkbox" id="pd" data-key="pd"> Include process damping (low-speed stability gain)</label>
+        <label class="f"><span>Process damping factor</span><span class="in"><input id="pdF" data-key="pdF" data-kind="num" type="number" step="0.1" min="0" inputmode="decimal"><em>× typ.</em></span></label>
+        <p class="hint" style="grid-column:1/-1">1.0 assumes about 0.004" (0.1 mm) of flank contact. Worn or honed edges damp more. Use the calibrate button with a cut you know runs clean to set this from your own shop.</p>
+        <label class="chk"><input type="checkbox" id="useMeas" data-key="useMeas"> Use tap-test results instead of the beam model</label>
+        <label class="f"><span>Measured natural freq.</span><span class="in"><input id="fnM" data-key="fnM" data-kind="num" type="number" step="any" inputmode="decimal"><em>Hz</em></span></label>
+        <label class="f"><span>Measured stiffness</span><span class="in"><input id="kM" data-key="kM" data-kind="stiff" type="number" step="any" inputmode="decimal"><em data-u="stiff"></em></span></label>
+        <p class="hint" style="grid-column:1/-1">Typical damping: 0.02–0.05 for an end mill in a holder, 0.01–0.03 for a solid boring bar. A tap test (impact hammer and accelerometer at the tool tip) gives the real frequency, stiffness and damping and makes the lobes far more reliable.</p>
+      </div>
+    </details>
+  </fieldset>
+</form>
+
+<section class="results" aria-live="polite">
+  <div class="card sketch"><h2>Setup <small id="sketchCap"></small></h2><svg id="sketch" viewBox="0 0 720 130" role="img" aria-label="Tool drawn to scale in its holder"></svg></div>
+
+  <div class="readouts" id="readouts"></div>
+
+  <div class="card" id="mineCard">
+    <h2>Your cutting conditions <small id="mineCap"></small></h2>
+    <div class="mine-head" id="mineHead"></div>
+    <div class="tbl-wrap"><table class="rec mine" id="mineTbl"></table></div>
+  </div>
+
+  <div class="card" id="optCard">
+    <h2>Max metal removal <small id="optCap"></small></h2>
+    <p class="note" style="margin-bottom:12px">Searches spindle speed, stepover and chip load for the highest removal rate that stays stable at your axial depth.</p>
+    <div class="opt-in" id="optIn">
+      <label class="f"><span>Max chip thickness</span><span class="in"><input id="oH" data-okey="oH" data-kind="chip" type="number" inputmode="decimal"><em data-u="chip"></em></span></label>
+      <label class="f"><span>Surface speed, min</span><span class="in"><input id="oVmin" data-okey="oVmin" data-kind="speed" type="number" step="5" inputmode="decimal"><em data-u="speed"></em></span></label>
+      <label class="f"><span>Surface speed, max</span><span class="in"><input id="oVmax" data-okey="oVmax" data-kind="speed" type="number" step="5" inputmode="decimal"><em data-u="speed"></em></span></label>
+      <label class="f"><span>Max stepover</span><span class="in"><input id="oAeMax" data-okey="oAeMax" data-kind="num" type="number" step="5" min="5" max="100" inputmode="numeric"><em>% D</em></span></label>
+      <label class="f"><span>Max machine feed</span><span class="in"><input id="oFeedMax" data-okey="oFeedMax" data-kind="feed" type="number" step="10" inputmode="decimal" placeholder="none"><em data-u="feed"></em></span></label>
+      <div class="f"><label style="display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-2);font-weight:500"><input type="checkbox" id="oDeflOn" data-okey="oDeflOn"> Max tip deflection</label><span class="in"><input id="oDefl" data-okey="oDefl" data-kind="defl" type="number" step="any" inputmode="decimal" aria-label="Max tip deflection"><em data-u="defl"></em></span></div>
+    </div>
+    <div class="rowbar" style="margin-top:6px;margin-bottom:12px"><p class="hint" style="margin:0"><span id="optDeflHint"></span> Chip thickness and speed start at the catalog values. Chip load is raised for chip thinning at light stepovers, up to 3× the target.</p><button type="button" class="btn ghost" id="optReset">Match catalog</button></div>
+    <p class="note" id="optStatus" aria-live="polite"></p>
+    <div id="optOut"></div>
+  </div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <div class="card">
+    <h2>Scaled feeds and speeds</h2>
+    <div class="tbl-wrap"><table class="rec" id="rec"></table></div>
+    <div class="rowbar">
+      <p class="note" id="recNote"></p>
+      <button class="btn" id="copyBtn" type="button">Copy scaled values</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="chart-head"><h2>Stability lobes <small id="chartCap">depth limit vs spindle speed</small></h2>
+      <div class="seg small" id="viewSeg" role="group" aria-label="Lobes shown for"><button type="button" data-view="mine">Your stepover</button><button type="button" data-view="cat">Catalog stepover</button></div></div>
+    <div class="chart"><svg id="chart" viewBox="0 0 760 380" role="img" aria-label="Stability lobe diagram"></svg></div>
+    <div class="legend">
+      <span><i style="background:var(--ok-wash);border:1px solid var(--ok)"></i>Predicted stable</span>
+      <span><i style="background:var(--dykem-wash)"></i>Allowed speed window</span>
+      <span><i style="background:transparent;border:2px solid var(--bad)"></i>Catalog point</span>
+      <span><i style="background:var(--dykem)"></i>Scaled point</span>
+      <span id="lgMine"><i style="background:var(--ink);clip-path:polygon(50% 0,100% 100%,0 100%)"></i>Your conditions</span>
+    </div>
+    <div class="probe" id="probe">Tap or click the chart to test any speed and depth.</div>
+  </div>
+
+  <div class="card" id="card3d">
+    <h2>3D stability map <small>speed × stepover × axial depth</small></h2>
+    <div id="plot3d" class="plot3d"></div>
+    <p class="note" id="note3d">Computing the map…</p>
+  </div>
+
+  <div class="card">
+    <h2>Sweet-spot speeds <small>tops of the stability pockets, select one to test it</small></h2>
+    <div class="spots" id="spots"></div>
+  </div>
+
+  <div class="card method">
+    <h2>How it works</h2>
+    <ul>
+      <li><b>Tool model.</b> The tool is a stepped carbide or steel cantilever: fluted section at an effective diameter of about 0.75–0.83 D (by flute count), optional neck, then shank. Clamp give is added as extra effective stickout (0.25 D for shrink fit up to 0.6 D for a set screw), and the spindle is a spring in series. The first bending mode comes from a Rayleigh estimate on the static deflection shape.</li>
+      <li><b>Chatter model.</b> Regenerative chatter on one symmetric mode. Milling uses the averaged (zero-order) directional-factor method of Altintas and Budak; boring uses the classic single-point turning limit with the radial force ratio Kr. Unequal flute spacing is handled with a separate delay for each flute. Helix angle and runout are not modeled.</li>
+      <li><b>Process damping.</b> At low surface speed the chatter waves on the part get very short, and the flank of the edge rubs on them and absorbs vibration. This is why titanium and Inconel can be cut deep at low SFM. It is modeled as damping that grows with depth and falls with surface speed (Chiou–Liang indentation model). Its strength depends on edge prep and wear, so calibrating it with one known-good cut is the best way to set it.</li>
+      <li><b>Scaling rule.</b> Cutting force is cut by the stiffness ratio (long tool ÷ catalog-length tool) so tip deflection stays at what the catalog tool would see. Most of that cut comes from depth; chip load drops only by the ratio to the 0.25 power so the edge keeps cutting instead of rubbing. Depth is then capped at the safety factor times the stability limit at the chosen speed, and chip load is raised back if depth was the tighter limit.</li>
+      <li><b>Accuracy.</b> Stiffness and frequency are usually within 10–25% of reality; lobe positions shift with any frequency error, so the pocket speeds are a starting point. Cut a test pass at the scaled values, listen, and nudge rpm ±5% to find the quiet spot.</li>
+    </ul>
+  </div>
+</section>
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const PI=Math.PI;
+const MATS={carbide:{E:620000,rho:14.5e-6},hss:{E:210000,rho:8.1e-6},steel:{E:205000,rho:7.85e-6},heavy:{E:340000,rho:17.6e-6}};
+const HOLDERS={shrink:0.25,hydro:0.35,mchuck:0.35,er:0.5,side:0.6,sleeve:0.4};
+const WMATS=[
+  ["al6061","Aluminum 6061-T6",800,0.30],["al7075","Aluminum 7075-T6",900,0.30],["brass","Brass 360",780,0.35],
+  ["s1018","Low-carbon steel 1018",2000,0.35],["s4140","Alloy steel 4140, ~30 HRC",2300,0.35],["p20","Tool steel P20",2200,0.35],
+  ["ss304","Stainless 304",2500,0.40],["ss174","Stainless 17-4 PH",2600,0.40],["ss138h1000","Stainless 13-8 PH, H1000 (~45 HRC)",2900,0.42],["ci","Gray cast iron",1200,0.35],
+  ["ti64","Titanium 6Al-4V",1900,0.35],["in718","Inconel 718",3100,0.40],["custom","Custom (set Kt and Kr)",null,null]];
+const WM=Object.fromEntries(WMATS.map(w=>[w[0],w]));
+
+const DEF={
+  mill:{toolMat:"carbide",D:12.7,N:3,Lf:25.4,Dn:0,Ln:0,L:76.2,holder:"shrink",wmat:"al6061",Kt:800,Kr:0.3,ae:6.35,dir:"climb",boreD:50.8,
+        Vc:304.8,fz:0.0762,ap:12.7,Lref:38.1,rpmMax:12000,sf:0.7,wMin:50,wMax:100,zeta:0.03,ks:100000,useMeas:false,fnM:1800,kM:3000,pitchVar:0,pd:true,pdF:1,mOn:true,mRpm:6000,mFz:0.0762,mAp:1.27,mAe:6.35,oH:null,oVmin:null,oVmax:null,oAeMax:100,oFeedMax:12700,oDeflOn:true,oDefl:null},
+  bore:{toolMat:"steel",D:19.05,N:1,Lf:0,Dn:0,Ln:0,L:76.2,holder:"sleeve",wmat:"s1018",Kt:2000,Kr:0.35,ae:0,dir:"climb",boreD:38.1,
+        Vc:152.4,fz:0.127,ap:1.27,Lref:57.15,rpmMax:4000,sf:0.7,wMin:40,wMax:100,zeta:0.02,ks:100000,useMeas:false,fnM:900,kM:2000,pitchVar:0,pd:true,pdF:1,mOn:true,mRpm:1100,mFz:0.127,mAp:0.381,mAe:0}
+};
+let S={mode:"mill",units:"in",mill:{...DEF.mill},bore:{...DEF.bore}};
+try{const raw=localStorage.getItem("stickout-v1");if(raw){const o=JSON.parse(raw);if(o&&o.mill&&o.bore){S.mode=o.mode==="bore"?"bore":"mill";S.units=o.units==="mm"?"mm":"in";S.mill={...DEF.mill,...o.mill};S.bore={...DEF.bore,...o.bore};}}}catch(e){}
+function save(){try{localStorage.setItem("stickout-v1",JSON.stringify({mode:S.mode,units:S.units,mill:S.mill,bore:S.bore}))}catch(e){}}
+let probe=null,calMsg="",calSrc="";
+
+/* ---------- units ---------- */
+const U={
+  len:{in:[v=>v/25.4,v=>v*25.4,"in",3],mm:[v=>v,v=>v,"mm",2]},
+  chip:{in:[v=>v/25.4,v=>v*25.4,"in",4],mm:[v=>v,v=>v,"mm",3]},
+  speed:{in:[v=>v*3.28084,v=>v/3.28084,"SFM",0],mm:[v=>v,v=>v,"m/min",0]},
+  stiff:{in:[v=>v*5.71015,v=>v/5.71015,"lbf/in",0],mm:[v=>v/1000,v=>v*1000,"N/µm",2]},
+  press:{in:[v=>v*145.038,v=>v/145.038,"psi",0],mm:[v=>v,v=>v,"N/mm²",0]},
+  feed:{in:[v=>v/25.4,v=>v*25.4,"IPM",1],mm:[v=>v,v=>v,"mm/min",0]},
+  mrr:{in:[v=>v/16387.064,null,"in³/min",2],mm:[v=>v/1000,null,"cm³/min",1]},
+  defl:{in:[v=>v/25.4,v=>v*25.4,"in",4],mm:[v=>v*1000,v=>v/1000,"µm",1]}
+};
+const toD=(k,v)=>U[k][S.units][0](v), toI=(k,v)=>U[k][S.units][1](v), uL=k=>U[k][S.units][2], uDec=k=>U[k][S.units][3];
+function nf(v,dec){if(!isFinite(v))return "—";return v.toLocaleString("en-US",{minimumFractionDigits:dec,maximumFractionDigits:dec})}
+const fmt=(k,v,dec)=>nf(toD(k,v),dec==null?uDec(k):dec);
+const fmtU=(k,v,dec)=>fmt(k,v,dec)+" "+uL(k);
+const fmtLim=v=>R&&v>=R.st.cap*0.99?"no limit":fmtU("len",v);
+
+/* ---------- model ---------- */
+function deffRatio(N){return N<=2?0.75:N===3?0.78:N===4?0.80:0.83}
+function beam(P,mode,L){
+  const m=MATS[P.toolMat]||MATS.carbide, D=P.D, e=(HOLDERS[P.holder]??0.4)*D, Lt=L+e;
+  const Lf=mode==="mill"?Math.min(P.Lf,L):0, neck=mode==="mill"&&P.Ln>0&&P.Dn>0, Dn=Math.min(P.Dn,D);
+  const de=deffRatio(P.N)*D;
+  const n=900,h=Lt/n;
+  function sec(x){const u=Lt-x; if(mode==="mill"&&u<=Lf)return[PI*de**4/64,0.75*PI*D*D/4];
+    if(neck&&u<=Lf+P.Ln)return[PI*Dn**4/64,PI*Dn*Dn/4]; return[PI*D**4/64,PI*D*D/4]}
+  let th=0,w=0,pk=null,mi=0,prevA=0,prevW=0;
+  for(let i=0;i<=n;i++){const x=i*h,[I,A]=sec(x),kap=(Lt-x)/(m.E*I);
+    if(i>0){const nth=th+h*(pk+kap)/2;w+=h*(th+nth)/2;th=nth;mi+=h*(prevA*prevW*prevW+A*w*w)/2}
+    pk=kap;prevA=A;prevW=w}
+  const c=w, rho=m.rho, mEff=rho*mi/(c*c);
+  const k=1/(c+1/P.ks);
+  const fn=Math.sqrt(k*1000/mEff)/(2*PI);
+  return{k,fn,m:mEff,e};
+}
+function immersion(P){const r=Math.min(Math.max(P.ae/P.D,0.001),1);
+  return[Math.acos(2*r-1),PI]} // always climb milling
+function ctxOf(P,mode){const w=WM[P.wmat];
+  return{mode,N:mode==="mill"?Math.max(1,Math.round(P.N)):1,Kt:P.Kt,Kr:P.Kr,imm:mode==="mill"?immersion(P):null}}
+const CAPF=40; // depth cap, multiples of tool diameter ("no practical limit")
+function stability(dyn,z,cx,P,Dcut,lo,hi,nG){
+  const k=dyn.k,fn=dyn.fn,wn=2*PI*fn,br=[];let K0,fr;
+  if(cx.mode==="mill"){
+    const Kr=cx.Kr,[a,b]=cx.imm;
+    const F=p=>[Math.cos(2*p)-2*Kr*p+Kr*Math.sin(2*p),-Math.sin(2*p)-2*p+Kr*Math.cos(2*p),-Math.sin(2*p)+2*p+Kr*Math.cos(2*p),-Math.cos(2*p)-2*Kr*p-Kr*Math.sin(2*p)];
+    const Fa=F(a),Fb=F(b),[axx,axy,ayx,ayy]=Fb.map((v,i)=>0.5*(v-Fa[i]));
+    const tr=axx+ayy,det=axx*ayy-axy*ayx,disc=tr*tr/4-det;
+    if(disc>=0){br.push([tr/2+Math.sqrt(disc),0],[tr/2-Math.sqrt(disc),0])}else{br.push([tr/2,Math.sqrt(-disc)],[tr/2,-Math.sqrt(-disc)])}
+    K0=4*PI/cx.Kt;
+    const N=cx.N,dv=(P.pitchVar||0)*PI/180;fr=[];
+    for(let j=0;j<N;j++)fr.push((2*PI/N+(N>1?dv*(-1+2*j/(N-1)):0))/(2*PI));
+  }else{br.push([-1,0]);K0=1/(cx.Kt*cx.Kr);fr=[1]}
+  const mEff=k*1000/(wn*wn),Ksp=15*cx.Kt,w0=0.1;
+  const tf=cx.mode==="mill"?cx.N*(cx.imm[1]-cx.imm[0])/(2*PI):1,dirf=cx.mode==="mill"?0.5:1;
+  const betaAt=rpm=>{if(!P.pd||!(P.pdF>0))return 0;const V=PI*Dcut*rpm/60000;return P.pdF*Ksp*w0*w0*tf*dirf/(4*V)/(2*mEff*wn)};
+  const cap=P.L;
+  function prep(rpm){
+    const fT=rpm/60*fr.length,n=Math.max(400,Math.min(10000,Math.ceil(1.3*fn/fT*12))),r0=0.55,r1=1.85;
+    const rs=new Float64Array(n),Sr=new Float64Array(n),Si=new Float64Array(n);
+    for(let i=0;i<n;i++){const r=r0+(r1-r0)*i/(n-1),w=r*wn;rs[i]=r;let a=0,b=0;
+      for(const f of fr){const th=w*f*60/rpm;a+=1-Math.cos(th);b+=Math.sin(th)}Sr[i]=a;Si[i]=b}
+    return{rs,Sr,Si,n};
+  }
+  function amin(c,zt){let best=Infinity;
+    for(const[mr,mi]of br){let pr=0,pi=0,have=false;
+      for(let i=0;i<c.n;i++){const r=c.rs[i],dd=(1-r*r)**2+(2*zt*r)**2,gr=(1-r*r)/(k*dd),gi=-2*zt*r/(k*dd);
+        const hr=mr*gr-mi*gi,hi2=mr*gi+mi*gr,qr=hr*c.Sr[i]-hi2*c.Si[i],qi=hr*c.Si[i]+hi2*c.Sr[i];
+        if(have&&((pi<=0&&qi>0)||(pi>=0&&qi<0))){const t=pi/(pi-qi),re=pr+t*(qr-pr);if(re>0){const a=K0/re;if(a<best)best=a}}
+        pr=qr;pi=qi;have=true}}
+    return best}
+  function limitAt(rpm){const c=prep(rpm),b=betaAt(rpm);let a=amin(c,z);if(!isFinite(a))return cap;
+    if(b*a<z*0.002)return Math.min(a,cap);
+    for(let it=0;it<60;it++){const an=amin(c,z+b*a);if(!isFinite(an)||an>=cap)return cap;if(an<=a*1.002)return an;a=an}
+    return Math.min(a,cap)}
+  const env=new Float64Array(nG),step=(hi-lo)/(nG-1);let aAbs=Infinity;
+  for(let i=0;i<nG;i++){const a=limitAt(lo+i*step);env[i]=a;if(a<aAbs)aAbs=a}
+  return{env,lo,hi,step,nG,aAbs,cap,lobes:null,limitAt,betaAt};
+}
+function envAt(st,rpm){const f=(rpm-st.lo)/st.step;if(f<=0)return st.env[0];if(f>=st.nG-1)return st.env[st.nG-1];
+  const i=Math.floor(f),t=f-i,a=st.env[i],b=st.env[i+1];return a+t*(b-a)}
+function forcePeak(ap,fz,cx){
+  if(cx.mode==="bore")return cx.Kt*ap*fz*Math.sqrt(1+cx.Kr*cx.Kr);
+  const[a,b]=cx.imm;let mx=0;
+  for(let s=0;s<720;s++){const ph=s*2*PI/720;let Fx=0,Fy=0;
+    for(let j=0;j<cx.N;j++){let p=(ph+2*PI*j/cx.N)%(2*PI);if(p>=a-1e-9&&p<=b+1e-9){const h=fz*Math.sin(p),Ft=cx.Kt*ap*h,Fr=cx.Kr*Ft;Fx+=-Ft*Math.cos(p)-Fr*Math.sin(p);Fy+=Ft*Math.sin(p)-Fr*Math.cos(p)}}
+    const R=Math.hypot(Fx,Fy);if(R>mx)mx=R}
+  return mx;
+}
+
+/* ---------- compute ---------- */
+let R=null,chartView="mine";
+function spotsOf(st){const peaks=[],E=st.env;
+  for(let i=1;i<st.nG-1;i++)if(isFinite(E[i])&&E[i]>E[i-1]&&E[i]>=E[i+1])peaks.push(i);
+  if(E[st.nG-1]>E[st.nG-2])peaks.push(st.nG-1);
+  return peaks.map(i=>({rpm:st.lo+i*st.step,a:E[i],edge:i===st.nG-1})).filter(p=>p.a>st.aAbs*1.15&&p.a<st.cap*0.99).sort((a,b)=>b.a-a.a).slice(0,6).sort((a,b)=>a.rpm-b.rpm)}
+function compute(){
+  const mode=S.mode,P=S[mode];
+  const cx=ctxOf(P,mode);
+  const tool=beam(P,mode,P.L),ref=beam(P,mode,P.Lref);
+  const dyn=P.useMeas&&P.fnM>0&&P.kM>0?{k:P.kM,fn:P.fnM}:{k:tool.k,fn:tool.fn};
+  const Dcut=mode==="mill"?P.D:P.boreD;
+  const rpmCatRaw=P.Vc*1000/(PI*Dcut),rpmCat=Math.min(rpmCatRaw,P.rpmMax);
+  const hi=Math.max(P.rpmMax,200),lo=Math.max(30,hi*0.04);
+  const st=stability(dyn,P.zeta,cx,P,Dcut,lo,hi,420);
+  const s=Math.min(1,tool.k/ref.k),beta=0.25;
+  const apDef=P.ap*Math.pow(s,1-beta);
+  const wlo=Math.max(lo,P.wMin/100*rpmCatRaw),whi=Math.min(hi,P.wMax/100*rpmCatRaw);
+  const Nt=cx.N, ae=mode==="mill"?Math.min(P.ae,P.D):0;
+  const mrrOf=(ap,fz,rpm)=>mode==="mill"?ap*ae*fz*Nt*rpm:PI*P.boreD*ap*fz*rpm;
+  function planAt(rpm){const lim=envAt(st,rpm),ap=Math.max(1e-6,Math.min(apDef,P.sf*lim,P.ap)),fz=Math.min(P.fz,P.fz*s*P.ap/ap);return{rpm,ap,fz,lim,mrr:mrrOf(ap,fz,rpm)}}
+  let best=null;
+  if(whi>wlo){const n=400;for(let i=0;i<=n;i++){const rpm=wlo+(whi-wlo)*i/n,pl=planAt(rpm);if(!best||pl.mrr>best.mrr*1.002||(pl.mrr>=best.mrr*0.998&&rpm>best.rpm))best=pl}}
+  else best=planAt(Math.min(Math.max(rpmCat,lo),hi));
+  best.lim=st.limitAt(best.rpm);if(best.ap>P.sf*best.lim){best.ap=Math.max(1e-6,P.sf*best.lim);best.fz=Math.min(P.fz,P.fz*s*P.ap/best.ap);best.mrr=mrrOf(best.ap,best.fz,best.rpm)}
+  const Fcat=forcePeak(P.ap,P.fz,cx),Frec=forcePeak(best.ap,best.fz,cx);
+  const catLim=st.limitAt(rpmCat);
+  // sweet spots
+  const spots=spotsOf(st);
+  let man=null;
+  if(P.mOn){
+    const cxM=ctxOf({...P,ae:mode==="mill"?Math.min(P.mAe,P.D):P.ae},mode);
+    const same=mode==="bore"||Math.abs(Math.min(P.mAe,P.D)-Math.min(P.ae,P.D))<1e-6;
+    const stM=same?st:stability(dyn,P.zeta,cxM,P,Dcut,lo,hi,420);
+    const rpm=Math.min(Math.max(P.mRpm,1),P.rpmMax*4),lim=stM.limitAt(rpm),F=forcePeak(P.mAp,P.mFz,cxM);
+    let hmax=P.mFz;if(mode==="mill"){const[a,b]=cxM.imm;hmax=(a<=PI/2&&b>=PI/2)?P.mFz:P.mFz*Math.max(Math.sin(a),Math.sin(b))}
+    const aeM=mode==="mill"?Math.min(P.mAe,P.D):0;
+    man={same,st:stM,spots:same?spots:spotsOf(stM),rpm,lim,F,hmax,ae:aeM,
+      feed:mode==="mill"?P.mFz*cxM.N*rpm:P.mFz*rpm,mrr:mode==="mill"?P.mAp*aeM*P.mFz*cxM.N*rpm:PI*P.boreD*P.mAp*P.mFz*rpm,
+      vc:PI*Dcut*rpm/1000,overMax:P.mRpm>P.rpmMax};
+  }
+  if(!man)chartView="cat";else if(man.same)chartView="both";else if(chartView!=="cat")chartView="mine";
+  const chartSt=chartView==="mine"?man.st:st,chartSpots=chartView==="mine"?man.spots:spots;
+  R={man,chartSt,chartSpots,view:chartView,mode,P,cx,tool,ref,dyn,s,rpmCat,rpmCatRaw,st,best,wlo,whi,Fcat,Frec,catLim,spots,Dcut,ae,mrrOf,
+     catMrr:mrrOf(P.ap,P.fz,rpmCat),warnLf:mode==="mill"&&P.Lf>P.L,warnRpm:rpmCatRaw>P.rpmMax};
+}
+
+/* ---------- render ---------- */
+const $=id=>document.getElementById(id);
+function status(ratio,sf){return ratio<=sf+1e-9?"ok":ratio<=1?"warn":"bad"}
+const STXT={ok:"Stable",warn:"Marginal",bad:"Chatter"};
+
+function renderInputs(){
+  const P=S[S.mode];
+  document.querySelectorAll("[data-only]").forEach(el=>el.hidden=el.dataset.only!==S.mode);
+  document.querySelectorAll("[data-lm]").forEach(el=>el.textContent=S.mode==="mill"?el.dataset.lm:el.dataset.lb);
+  document.querySelectorAll("[data-u]").forEach(el=>el.textContent=uL(el.dataset.u));
+  document.querySelectorAll("#form [data-key]").forEach(el=>{const k=el.dataset.key,kind=el.dataset.kind,v=P[k];
+    if(el.type==="checkbox")el.checked=!!v;else if(el.tagName==="SELECT")el.value=v;
+    else if(kind==="int")el.value=Math.round(v);else if(kind==="num")el.value=+(+v).toFixed(4);
+    else{const fine=el.dataset.fine==="all"||el.dataset.fine===S.mode,d=toD(kind,v);
+      el.step=fine?(S.units==="in"?"0.0001":"0.001"):"any";
+      el.value=fine?(+d).toFixed(S.units==="in"?4:3):+d.toFixed(kind==="stiff"&&S.units==="in"?0:Math.max(uDec(kind),kind==="len"?3:uDec(kind)))}});
+  syncMine(null);
+  $("m-mill").setAttribute("aria-pressed",S.mode==="mill");$("m-bore").setAttribute("aria-pressed",S.mode==="bore");
+  $("u-in").setAttribute("aria-pressed",S.units==="in");$("u-mm").setAttribute("aria-pressed",S.units==="mm");
+}
+
+function mineDims(){const P=S[S.mode];return{P,Dc:S.mode==="mill"?P.D:P.boreD,N:S.mode==="mill"?Math.max(1,Math.round(P.N)):1}}
+function syncMine(skip){
+  const {P,Dc,N}=mineDims(),set=(id,v)=>{const el=$(id);if(el&&el!==skip)el.value=v};
+  set("mRpm",Math.round(P.mRpm));
+  set("mVc",+toD("speed",PI*Dc*P.mRpm/1000).toFixed(1));
+  const fine=S.units==="in"?4:3;
+  set("mFz",(+toD("chip",P.mFz)).toFixed(fine));
+  set("mFeed",+toD("feed",P.mFz*N*P.mRpm).toFixed(S.units==="in"?2:0));
+  const fe=$("mFeed");if(fe)fe.step=S.mode==="mill"||S.units==="mm"?"1":"0.1";
+}
+function renderSketch(){
+  const {P,mode,tool}=R, svg=$("sketch");
+  const L=P.L,Lr=P.Lref,D=P.D,maxL=Math.max(L,Lr);
+  const x0=150,avail=540,sc=Math.min(avail/maxL,64/D),cy=58,r=D*sc/2;
+  const X=u=>x0+u*sc;
+  let g=`<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="7" height="7" fill="var(--steel-2)"/><line x1="0" y1="0" x2="0" y2="7" stroke="var(--steel)" stroke-width="3"/></pattern></defs>`;
+  // holder
+  const hh=Math.max(r*2+28,52);
+  g+=`<path d="M${x0-120} ${cy-hh/2-6} H${x0-26} L${x0} ${cy-hh/2+8} V${cy+hh/2-8} L${x0-26} ${cy+hh/2+6} H${x0-120} Z" fill="var(--steel-3)" stroke="var(--ink-2)" stroke-width="1.2"/>`;
+  g+=`<text x="${x0-112}" y="${cy+4}" font-family="var(--f-display)" font-size="12" letter-spacing="1.2" fill="var(--ink-2)">HOLDER</text>`;
+  // ghost reference length
+  g+=`<rect x="${X(0)}" y="${cy-r}" width="${Lr*sc}" height="${2*r}" fill="none" stroke="var(--dykem)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
+  if(mode==="mill"){
+    const Lf=Math.min(P.Lf,L),neck=P.Ln>0&&P.Dn>0,Ln=neck?Math.min(P.Ln,L-Lf):0,rn=Math.min(P.Dn,D)*sc/2;
+    const xShEnd=X(L-Lf-Ln);
+    g+=`<rect x="${X(0)}" y="${cy-r}" width="${xShEnd-X(0)}" height="${2*r}" fill="var(--steel-2)" stroke="var(--ink-2)" stroke-width="1.2"/>`;
+    if(neck)g+=`<rect x="${xShEnd}" y="${cy-rn}" width="${Ln*sc}" height="${2*rn}" fill="var(--steel-2)" stroke="var(--ink-2)" stroke-width="1.2"/>`;
+    g+=`<path d="M${X(L-Lf)} ${cy-r} H${X(L)-Math.min(4,r/3)} L${X(L)} ${cy-r+Math.min(4,r/3)} V${cy+r} H${X(L-Lf)} Z" fill="url(#hatch)" stroke="var(--ink-2)" stroke-width="1.2"/>`;
+  }else{
+    const xr=X(L);
+    g+=`<rect x="${X(0)}" y="${cy-r}" width="${L*sc}" height="${2*r}" fill="var(--steel-2)" stroke="var(--ink-2)" stroke-width="1.2"/>`;
+    const t=Math.max(6,r*0.6);
+    g+=`<path d="M${xr-t} ${cy-r} L${xr+3} ${cy-r-t*0.7} L${xr} ${cy-r+t*0.5} Z" fill="var(--ink)"/>`;
+  }
+  // dimensions
+  const dy=cy+Math.max(r,20)+22;
+  g+=`<line x1="${X(0)}" y1="${dy-8}" x2="${X(0)}" y2="${dy+6}" stroke="var(--ink)"/><line x1="${X(L)}" y1="${dy-8}" x2="${X(L)}" y2="${dy+6}" stroke="var(--ink)"/>`;
+  g+=`<line x1="${X(0)}" y1="${dy}" x2="${X(L)}" y2="${dy}" stroke="var(--ink)" marker-start="" /><path d="M${X(0)} ${dy} l7 -3.5 v7 Z M${X(L)} ${dy} l-7 -3.5 v7 Z" fill="var(--ink)"/>`;
+  const lbl=`${fmtU("len",L)}  ·  ${nf(L/D,1)}×D`;
+  const mid=(X(0)+X(L))/2;
+  g+=`<rect x="${mid-90}" y="${dy-9}" width="180" height="18" fill="var(--surface)"/><text x="${mid}" y="${dy+4.5}" text-anchor="middle" font-family="var(--f-mono)" font-size="12.5" fill="var(--ink)">${lbl}</text>`;
+  const ry=cy-Math.max(r,20)-14;
+  g+=`<text x="${X(Lr)}" y="${ry}" text-anchor="${X(Lr)>620?"end":"middle"}" font-family="var(--f-mono)" font-size="11.5" fill="var(--dykem)">catalog ${fmtU("len",Lr)}</text>`;
+  g+=`<line x1="${X(Lr)}" y1="${ry+4}" x2="${X(Lr)}" y2="${cy-r-2}" stroke="var(--dykem)" stroke-dasharray="2 3"/>`;
+  svg.innerHTML=g;
+  $("sketchCap").textContent=`drawn to scale · dashed outline is the catalog stickout`;
+}
+
+function renderReadouts(){
+  const {P,tool,dyn,s,st}=R;
+  const items=[
+    ["Natural frequency",nf(dyn.fn,0),"Hz"],
+    ["Tip stiffness",fmt("stiff",dyn.k),uL("stiff")],
+    ["Stickout",nf(P.L/P.D,1),"× D"],
+    ["Stiffness vs catalog",nf(s*100,0),"%"],
+    ["Stable at any speed",st.aAbs>=st.cap*0.99?"any":fmt("len",st.aAbs*P.sf),st.aAbs>=st.cap*0.99?"":uL("len")]];
+  $("readouts").innerHTML=items.map(([k,v,u])=>`<div class="ro"><div class="k">${k}</div><div class="v">${v}<small>${u}</small></div></div>`).join("");
+}
+
+function renderVerdict(){
+  const {P,rpmCat,catLim,Fcat,tool,ref,mode,warnLf,warnRpm}=R;
+  const ratio=P.ap/catLim, stt=status(ratio,P.sf);
+  const dRatio=ref.k/tool.k;
+  const dName=mode==="mill"?"deep":"depth of cut";
+  let msg;
+  if(stt==="bad")msg=`At the catalog numbers (${nf(rpmCat,0)} rpm, ${fmtU("len",P.ap)} ${dName}) this stickout is predicted to chatter. The stability limit at that speed is about ${fmtLim(catLim)}.`;
+  else if(stt==="warn")msg=`The catalog numbers (${nf(rpmCat,0)} rpm, ${fmtU("len",P.ap)} ${dName}) sit just under the predicted limit of ${fmtLim(catLim)}. Expect chatter if the real tool is a little softer than modeled.`;
+  else msg=`The catalog numbers (${nf(rpmCat,0)} rpm, ${fmtU("len",P.ap)} ${dName}) fall inside the stable zone${catLim>=R.st.cap*0.99?"; at this speed process damping removes any practical depth limit":", with the limit at about "+fmtLim(catLim)}.`;
+  if(dRatio>1.05)msg+=` Tip deflection would be ${nf(dRatio,1)}× what the catalog-length tool sees.`;
+  if(warnRpm)msg+=` Catalog speed needs ${nf(R.rpmCatRaw,0)} rpm, above your spindle limit, so ${nf(P.rpmMax,0)} rpm is used.`;
+  if(warnLf)msg+=` Flute length is longer than the stickout, so the flutes are treated as ending at the holder.`;
+  const v=$("verdict");v.className="verdict "+stt;
+  const cal=stt!=="ok"&&!P.mOn?`<button type="button" class="btn ghost" id="calBtn">This cut runs clean in my shop · calibrate</button>`:"";
+  v.innerHTML=`<span class="pill ${stt}">${STXT[stt]==="Chatter"?"Chatter predicted":STXT[stt]} at catalog</span><div class="vtxt"><p>${msg}</p>${cal}${calMsg&&calSrc==="cat"?`<p class="calmsg">${calMsg}</p>`:""}</div>`;
+}
+
+function pct(a,b){if(!isFinite(a)||!isFinite(b)||b===0)return"";const p=(a/b-1)*100;if(Math.abs(p)<0.5)return`<span class="d">—</span>`;return`<span class="d ${p<0?"dn":"up"}">${p>0?"+":""}${nf(p,0)}%</span>`}
+function renderTable(){
+  const {P,mode,rpmCat,best,cx,Fcat,Frec,tool,ref,dyn,ae,catMrr,catLim}=R;
+  const Nt=cx.N, D=R.Dcut;
+  const vc=rpm=>PI*D*rpm/1000;
+  const fCat=mode==="mill"?P.fz*Nt*rpmCat:P.fz*rpmCat, fRec=mode==="mill"?best.fz*Nt*best.rpm:best.fz*best.rpm;
+  const rows=[
+    ["Spindle speed",nf(rpmCat,0)+" rpm",nf(best.rpm,0)+" rpm",pct(best.rpm,rpmCat)],
+    ["Surface speed",fmtU("speed",vc(rpmCat)),fmtU("speed",vc(best.rpm)),""],
+    [mode==="mill"?"Chip load":"Feed per rev",fmtU("chip",P.fz),fmtU("chip",best.fz),pct(best.fz,P.fz)],
+    [mode==="mill"?"Axial depth (ap)":"Depth of cut",fmtU("len",P.ap),fmtU("len",best.ap),pct(best.ap,P.ap)]];
+  if(mode==="mill")rows.push(["Radial width (ae)",fmtU("len",ae),fmtU("len",ae),""]);
+  rows.push(["Feed rate",fmtU("feed",fCat),fmtU("feed",fRec),pct(fRec,fCat)],
+    ["Metal removal",fmtU("mrr",catMrr),fmtU("mrr",best.mrr),pct(best.mrr,catMrr)],
+    ["Stability limit at speed",fmtLim(catLim),fmtLim(best.lim),""],
+    ["Peak tip deflection",fmtU("defl",Fcat/dyn.k),fmtU("defl",Frec/dyn.k),pct(Frec/dyn.k,Fcat/dyn.k)],
+    [mode==="mill"?"Tooth-pass frequency":"Spindle frequency",nf(Nt*rpmCat/60,0)+" Hz",nf(Nt*best.rpm/60,0)+" Hz",""]);
+  $("rec").innerHTML=`<thead><tr><th></th><th>Catalog, this stickout</th><th class="hl">Scaled</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="hl">${r[2]}${r[3]}</td></tr>`).join("")+`</tbody>`;
+  const refDefl=Fcat/ref.k;
+  $("recNote").textContent=`Force is cut to ${nf(R.s*100,0)}% so deflection stays near the catalog tool's ${fmtU("defl",refDefl)}; depth is also held to ${nf(P.sf*100,0)}% of the stability limit at ${nf(best.rpm,0)} rpm.`;
+}
+
+function niceTicks(lo,hi,n){const span=hi-lo,raw=span/n,mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/mag,st=(f<1.5?1:f<3?2:f<7?5:10)*mag;
+  const out=[];for(let v=Math.ceil(lo/st)*st;v<=hi+1e-9;v+=st)out.push(+v.toPrecision(10));return out}
+let CH=null;
+function renderChart(){
+  const {P,rpmCat,best,wlo,whi,man,view}=R,st=R.chartSt, svg=$("chart");
+  const showCat=view!=="mine",showMine=!!man&&view!=="cat";
+  const W=760,H=380,ml=62,mr=18,mt=16,mb=44,pw=W-ml-mr,ph=H-mt-mb;
+  let maxEnv=0;for(const v of st.env)if(isFinite(v)&&v>maxEnv)maxEnv=v;
+  let ymax=Math.max(showCat?P.ap*1.2:0,showCat?best.ap*1.4:0,showMine?P.mAp*1.25:0,st.aAbs*3,Math.min(maxEnv,Math.max(showCat?P.ap*2.5:0,showMine?P.mAp*2.5:0,st.aAbs*10))*1.05);
+  if(probe&&probe.a<ymax*3)ymax=Math.max(ymax,probe.a*1.1);
+  ymax=Math.min(ymax,P.L);
+  const X=r=>ml+(r-st.lo)/(st.hi-st.lo)*pw, Y=a=>mt+ph-Math.min(a,ymax)/ymax*ph;
+  CH={X,Y,ml,mt,pw,ph,ymax,W,H};
+  let g=`<defs><clipPath id="pc"><rect x="${ml}" y="${mt}" width="${pw}" height="${ph}"/></clipPath></defs>`;
+  g+=`<rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="var(--paper)"/>`;
+  if(showCat&&whi>wlo)g+=`<rect x="${X(wlo)}" y="${mt}" width="${X(whi)-X(wlo)}" height="${ph}" fill="var(--dykem-wash)"/>`;
+  // grid
+  const xt=niceTicks(st.lo,st.hi,7);
+  const ydMax=toD("len",ymax),yt=niceTicks(0,ydMax,5);
+  for(const t of yt){const y=Y(toI("len",t));g+=`<line x1="${ml}" x2="${ml+pw}" y1="${y}" y2="${y}" stroke="var(--rule)" stroke-width="0.8"/><text x="${ml-8}" y="${y+4}" text-anchor="end" font-family="var(--f-mono)" font-size="11" fill="var(--ink-3)">${nf(t,S.units==="in"?(ydMax<0.2?3:2):(ydMax<5?1:0))}</text>`}
+  for(const t of xt){const x=X(t);g+=`<line x1="${x}" x2="${x}" y1="${mt}" y2="${mt+ph}" stroke="var(--rule-2)" stroke-width="0.8"/><text x="${x}" y="${mt+ph+17}" text-anchor="middle" font-family="var(--f-mono)" font-size="11" fill="var(--ink-3)">${nf(t,0)}</text>`}
+  // stable area
+  let d=`M${X(st.lo)} ${Y(0)}`;for(let i=0;i<st.nG;i++){const a=st.env[i];d+=` L${X(st.lo+i*st.step).toFixed(1)} ${Y(isFinite(a)?a:ymax).toFixed(1)}`}
+  d+=` L${X(st.hi)} ${Y(0)} Z`;
+  g+=`<g clip-path="url(#pc)"><path d="${d}" fill="var(--ok-wash)" fill-opacity="0.9"/>`;
+  if(st.lobes){for(const poly of st.lobes){let s="",pen=false;for(const p of poly){if(!p||p[0]<st.lo*0.9||p[0]>st.hi*1.1||p[1]>ymax*3){pen=false;continue}s+=(pen?" L":" M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1);pen=true}if(s)g+=`<path d="${s}" fill="none" stroke="var(--steel)" stroke-width="0.8" stroke-opacity="0.7"/>`}}
+  let e="";for(let i=0;i<st.nG;i++){const a=st.env[i];e+=(i?" L":"M")+X(st.lo+i*st.step).toFixed(1)+" "+Y(isFinite(a)?a:ymax).toFixed(1)}
+  g+=`<path d="${e}" fill="none" stroke="var(--ok)" stroke-width="2"/>`;
+  const ya=Y(st.aAbs);g+=`<line x1="${ml}" x2="${ml+pw}" y1="${ya}" y2="${ya}" stroke="var(--ok)" stroke-dasharray="3 4" stroke-width="1"/>`;
+  g+=`</g>`;
+  // axes
+  g+=`<line x1="${ml}" x2="${ml}" y1="${mt}" y2="${mt+ph}" stroke="var(--ink)"/><line x1="${ml}" x2="${ml+pw}" y1="${mt+ph}" y2="${mt+ph}" stroke="var(--ink)"/>`;
+  g+=`<text x="${ml+pw/2}" y="${H-6}" text-anchor="middle" font-family="var(--f-display)" font-size="13" letter-spacing="1" fill="var(--ink-2)">SPINDLE SPEED, RPM</text>`;
+  g+=`<text transform="translate(14 ${mt+ph/2}) rotate(-90)" text-anchor="middle" font-family="var(--f-display)" font-size="13" letter-spacing="1" fill="var(--ink-2)">${R.mode==="mill"?"AXIAL DEPTH":"DEPTH OF CUT"}, ${uL("len").toUpperCase()}</text>`;
+  if(showCat){
+  // catalog point
+  const cxp=X(rpmCat),cyp=Y(P.ap);
+  g+=`<line x1="${cxp}" x2="${cxp}" y1="${mt}" y2="${mt+ph}" stroke="var(--bad)" stroke-dasharray="2 4" stroke-width="1"/>`;
+  g+=`<rect x="${cxp-6}" y="${cyp-6}" width="12" height="12" transform="rotate(45 ${cxp} ${cyp})" fill="var(--surface)" stroke="var(--bad)" stroke-width="2"/>`;
+  g+=`<text x="${cxp+(cxp>ml+pw-90?-10:10)}" y="${Math.max(mt+12,cyp-10)}" text-anchor="${cxp>ml+pw-90?"end":"start"}" font-family="var(--f-display)" font-size="12.5" letter-spacing=".6" fill="var(--bad)">CATALOG</text>`;
+  // recommended
+  const rx=X(best.rpm),ry=Y(best.ap);
+  g+=`<circle cx="${rx}" cy="${ry}" r="6.5" fill="var(--dykem)" stroke="var(--surface)" stroke-width="2"/>`;
+  g+=`<text x="${rx+(rx>ml+pw-90?-11:11)}" y="${ry+(ry>mt+ph-20?-10:16)}" text-anchor="${rx>ml+pw-90?"end":"start"}" font-family="var(--f-display)" font-size="12.5" letter-spacing=".6" fill="var(--dykem)">SCALED</text>`;
+  }
+  if(showMine&&man.rpm>=st.lo&&man.rpm<=st.hi){const mx=X(man.rpm),my=Y(P.mAp),lft=mx>ml+pw-110;
+    g+=`<path d="M${mx} ${my-8} L${mx+7.5} ${my+5.5} L${mx-7.5} ${my+5.5} Z" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/>`;
+    g+=`<text x="${mx+(lft?-12:12)}" y="${Math.max(mt+12,my-8)}" text-anchor="${lft?"end":"start"}" font-family="var(--f-display)" font-size="12.5" letter-spacing=".6" fill="var(--ink)">YOURS</text>`}
+  if(probe){const px=X(probe.rpm),py=Y(probe.a);g+=`<path d="M${px-6} ${py-6} L${px+6} ${py+6} M${px+6} ${py-6} L${px-6} ${py+6}" stroke="var(--ink)" stroke-width="2.2"/>`}
+  g+=`<g id="hov" visibility="hidden"><line id="hvl" y1="${mt}" y2="${mt+ph}" stroke="var(--ink-2)" stroke-width="0.8"/><rect id="hvb" height="38" rx="3" fill="var(--surface)" stroke="var(--rule)"/><text id="hvt1" font-family="var(--f-mono)" font-size="11.5" fill="var(--ink)"></text><text id="hvt2" font-family="var(--f-mono)" font-size="11.5" fill="var(--ok)"></text></g>`;
+  g+=`<rect id="hit" x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="transparent"/>`;
+  svg.innerHTML=g;
+}
+function svgPt(ev){const svg=$("chart"),b=svg.getBoundingClientRect();return[(ev.clientX-b.left)/b.width*CH.W,(ev.clientY-b.top)/b.height*CH.H]}
+function hover(ev){
+  if(!CH||!R)return;const[x,y]=svgPt(ev);const st=R.chartSt;
+  if(x<CH.ml||x>CH.ml+CH.pw||y<CH.mt||y>CH.mt+CH.ph){$("hov")&&$("hov").setAttribute("visibility","hidden");return}
+  const rpm=st.lo+(x-CH.ml)/CH.pw*(st.hi-st.lo),lim=envAt(st,rpm);
+  const t1=`${nf(rpm,0)} rpm · ${fmtU("speed",PI*R.Dcut*rpm/1000)}`,t2=`limit ${fmtLim(lim)}`;
+  const w=Math.max(t1.length,t2.length)*7+14,bx=x+12+w>CH.ml+CH.pw?x-12-w:x+12,by=CH.mt+8;
+  $("hov").setAttribute("visibility","visible");$("hvl").setAttribute("x1",x);$("hvl").setAttribute("x2",x);
+  const b=$("hvb");b.setAttribute("x",bx);b.setAttribute("y",by);b.setAttribute("width",w);
+  const a1=$("hvt1"),a2=$("hvt2");a1.setAttribute("x",bx+7);a1.setAttribute("y",by+15);a1.textContent=t1;a2.setAttribute("x",bx+7);a2.setAttribute("y",by+30);a2.textContent=t2;
+}
+function setProbe(rpm,a){probe={rpm,a};renderChart();renderProbe()}
+function renderProbe(){
+  const el=$("probe");if(!probe){el.innerHTML="Tap or click the chart to test any speed and depth.";return}
+  const lim=R.chartSt.limitAt(probe.rpm),stt=status(probe.a/lim,R.P.sf);
+  el.innerHTML=`<span class="pill ${stt}">${stt==="bad"?"Chatter predicted":STXT[stt]}</span> Test point <b>${nf(probe.rpm,0)} rpm</b> at <b>${fmtU("len",probe.a)}</b> · predicted limit <b>${fmtLim(lim)}</b>${lim<R.st.cap*0.99?` (${nf(probe.a/lim*100,0)}% of limit)`:""}`;
+}
+function renderSpots(){
+  const {wlo,whi,P,Dcut}=R,spots=R.chartSpots;
+  if(!spots.length){$("spots").innerHTML=`<p class="note">No distinct pockets in this speed range. The tool's frequency puts every usable speed in the low-speed region, so the "stable at any speed" depth is the working limit.</p>`;return}
+  $("spots").innerHTML=spots.map(s=>{const inW=s.rpm>=wlo-1&&s.rpm<=whi+1;
+    return`<button type="button" class="spot" data-rpm="${s.rpm}" data-a="${s.a*P.sf}"><span class="r">${nf(s.rpm,0)}<small style="font-size:12px;color:var(--ink-3)"> rpm${s.edge?"+":""}</small></span><span class="s">${fmtU("speed",PI*Dcut*s.rpm/1000)}</span><span class="a">limit ${fmtU("len",s.a)}</span>${inW?`<span class="pill dy">In speed window</span>`:""}</button>`}).join("");
+}
+function renderMine(){
+  const {man,P,mode,cx,dyn,Dcut}=R,card=$("mineCard");
+  const seg=$("viewSeg");seg.hidden=!man||man.same;
+  seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===R.view));
+  $("lgMine").hidden=!man;
+  $("chartCap").textContent=R.view==="mine"?`lobes for your ${fmtU("len",man.ae)} stepover`:(R.view==="cat"&&man?`lobes for the catalog ${fmtU("len",R.ae)} stepover`:"depth limit vs spindle speed");
+  $("mHint").textContent=man?`Speed and feed boxes are linked: enter rpm or surface speed, and chip load or feed rate. Surface speed is on the ${fmtU("len",Dcut)} ${mode==="mill"?"cutter":"bore"} diameter.`:"Turn this on to check a current or proposed setup.";
+  card.hidden=!man;if(!man)return;
+  const ratio=P.mAp/man.lim,noLim=man.lim>=R.st.cap*0.99,stt=noLim?"ok":status(ratio,P.sf);
+  const dName=mode==="mill"?"deep":"depth of cut";
+  let msg;
+  if(noLim)msg=`At ${nf(man.rpm,0)} rpm the model shows no chatter limit up to the stickout, so ${fmtU("len",P.mAp)} ${dName} should run clean.`;
+  else if(stt==="ok")msg=`${fmtU("len",P.mAp)} ${dName} is ${nf(ratio*100,0)}% of the predicted ${fmtLim(man.lim)} limit at ${nf(man.rpm,0)} rpm, inside your ${nf(P.sf*100,0)}% safety margin.`;
+  else if(stt==="warn")msg=`${fmtU("len",P.mAp)} ${dName} is ${nf(ratio*100,0)}% of the predicted ${fmtLim(man.lim)} limit at ${nf(man.rpm,0)} rpm. It may run, but there is little margin if the tool is softer than modeled.`;
+  else msg=`${fmtU("len",P.mAp)} ${dName} is ${nf(ratio,1)}× the predicted ${fmtLim(man.lim)} limit at ${nf(man.rpm,0)} rpm, so chatter is likely.`;
+  if(stt!=="ok"){const ok=man.spots.filter(s=>s.a*P.sf>=P.mAp);const pick=(ok.length?ok:man.spots).slice().sort((a,b)=>Math.abs(a.rpm-man.rpm)-Math.abs(b.rpm-man.rpm))[0];
+    if(pick)msg+=ok.length?` The nearest pocket that holds this depth is about ${nf(pick.rpm,0)} rpm (limit ${fmtLim(pick.a)}).`:` The closest pocket is about ${nf(pick.rpm,0)} rpm (limit ${fmtLim(pick.a)}); reduce depth to about ${fmtU("len",pick.a*P.sf)} there.`}
+  if(man.overMax)msg+=` Note: ${nf(P.mRpm,0)} rpm is above your spindle limit of ${nf(P.rpmMax,0)} rpm.`;
+  const cal=stt!=="ok"?`<button type="button" class="btn ghost" id="calMine">This cut runs clean in my shop · calibrate</button>`:"";
+  $("mineHead").innerHTML=`<span class="pill ${stt}">${stt==="bad"?"Chatter predicted":STXT[stt]}</span><div class="vtxt"><p>${msg}</p>${cal}${calMsg&&calSrc==="mine"?`<p class="calmsg">${calMsg}</p>`:""}</div>`;
+  $("mineCap").textContent=`at ${fmtU("len",P.L)} stickout`;
+  const rows=[["Surface speed",fmtU("speed",man.vc)],["Feed rate",fmtU("feed",man.feed)],
+    [mode==="mill"?"Max chip thickness":"Chip thickness",fmtU("chip",man.hmax)+(mode==="mill"&&man.hmax<P.mFz*0.98?` <span class="d">thinned from ${fmt("chip",P.mFz)}</span>`:"")],
+    ["Metal removal",fmtU("mrr",man.mrr)],["Stability limit at speed",fmtLim(man.lim)],
+    ["Peak tip deflection",fmtU("defl",man.F/dyn.k)],[mode==="mill"?"Tooth-pass frequency":"Spindle frequency",nf(cx.N*man.rpm/60,0)+" Hz"]];
+  $("mineTbl").innerHTML=`<tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</tbody>`;
+}
+
+function renderAll(){compute();renderSketch();renderReadouts();renderMine();if(typeof renderOpt==="function")renderOpt();renderVerdict();renderTable();renderChart();renderProbe();renderSpots()}
+
+function calibrate(src){
+  const P=S[S.mode];P.pd=true;calSrc=src;
+  const mine=src==="mine",mode=S.mode;
+  const cx=ctxOf(mine&&mode==="mill"?{...P,ae:Math.min(P.mAe,P.D)}:P,mode),tool=beam(P,mode,P.L),dyn=P.useMeas&&P.fnM>0&&P.kM>0?{k:P.kM,fn:P.fnM}:{k:tool.k,fn:tool.fn};
+  const Dcut=mode==="mill"?P.D:P.boreD;
+  const rpm=mine?Math.min(Math.max(P.mRpm,1),P.rpmMax*4):Math.min(P.Vc*1000/(PI*Dcut),P.rpmMax),ap=mine?P.mAp:P.ap;
+  const test=f=>{const keep=P.pdF;P.pdF=f;const st=stability(dyn,P.zeta,cx,P,Dcut,rpm,rpm+1,2);const ok=st.limitAt(rpm)>=ap;P.pdF=keep;return ok};
+  if(test(0)){calMsg="This cut is already predicted stable without process damping, so nothing changed.";return}
+  let lo=0,hi=1;while(!test(hi)&&hi<512)hi*=2;
+  if(!test(hi)){calMsg="Even very strong process damping can't explain this cut. Check stickout, flute count and tap-test values, or raise the damping ratio.";return}
+  for(let i=0;i<22;i++){const m=(lo+hi)/2;if(test(m))hi=m;else lo=m}
+  P.pdF=+hi.toFixed(3);
+  calMsg=`Calibrated: process damping factor set to ${nf(P.pdF,2)} (1.00 is the uncalibrated default), the smallest value that makes this cut stable. Now change the stickout or the numbers to see what still holds.`;
+}
+/* ---------- 3D map ---------- */
+const PLOTLY_URL="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js";
+let plotlyP=null,tok3=0,t3=0,last3=null;
+function loadPlotly(){if(window.Plotly)return Promise.resolve();if(plotlyP)return plotlyP;
+  plotlyP=new Promise((res,rej)=>{const s=document.createElement("script");s.src=PLOTLY_URL;s.onload=()=>res();s.onerror=()=>{plotlyP=null;rej()};document.head.appendChild(s)});return plotlyP}
+function schedule3d(){clearTimeout(t3);t3=setTimeout(build3d,500)}
+function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function build3d(){
+  const card=$("card3d");if(!R)return;
+  if(R.mode!=="mill"){card.hidden=true;return}card.hidden=false;
+  const my=++tok3,{P,dyn,st}=R,D=P.D,nA=15,nR=96,note=$("note3d");
+  const aes=[];for(let i=0;i<nA;i++)aes.push(D*(0.04+0.96*i/(nA-1)));
+  const rows=[];let i=0;
+  note.textContent="Computing the map… 0%";
+  const step=()=>{if(my!==tok3)return;
+    const t0=performance.now();
+    while(i<nA&&performance.now()-t0<40){const cx=ctxOf({...P,ae:aes[i]},"mill");
+      const s3=stability(dyn,P.zeta,cx,P,D,st.lo,st.hi,nR);rows.push(Array.from(s3.env,v=>Math.min(v,P.L)));i++}
+    if(i<nA){note.textContent=`Computing the map… ${Math.round(i/nA*100)}%`;setTimeout(step,0);return}
+    last3={aes,rows,nR,lo:st.lo,hi:st.hi};
+    loadPlotly().then(()=>{if(my===tok3)draw3d()},()=>{note.textContent="The 3D plotting library couldn't load. Check your connection and reload the page."});
+  };
+  setTimeout(step,0);
+}
+function draw3d(){
+  if(!last3||!window.Plotly||!R)return;
+  const {aes,rows,nR,lo,hi}=last3,{P,man,best,rpmCat}=R;
+  const rpms=[];for(let j=0;j<nR;j++)rpms.push(lo+(hi-lo)*j/(nR-1));
+  const L=v=>toD("len",v),dec=S.units==="in"?3:2,u=uL("len");
+  const ink=cssv("--ink"),ink2=cssv("--ink-2"),rule=cssv("--rule"),surf=cssv("--surface");
+  const traces=[{type:"surface",x:rpms,y:aes.map(L),z:rows.map(r=>r.map(L)),
+    colorscale:[[0,cssv("--bad")],[0.3,cssv("--warn")],[1,cssv("--ok")]],cmin:0,cmax:L(P.L),
+    colorbar:{title:{text:`Stable ap (${u})`,side:"right",font:{color:ink2,size:12}},tickfont:{color:ink2,size:11},thickness:12,len:0.7},
+    contours:{z:{show:true,usecolormap:true,project:{z:true},width:1}},opacity:0.95,
+    hovertemplate:`%{x:.0f} rpm<br>ae %{y:.${dec}f} ${u}<br>stable ap %{z:.${dec}f} ${u}<extra></extra>`}];
+  const pt=(name,x,y,z,color,sym)=>({type:"scatter3d",mode:"markers+text",name,x:[x],y:[L(y)],z:[L(z)],text:[name],textposition:"top center",
+    textfont:{color,size:12,family:"Barlow Condensed, sans-serif"},marker:{size:6,color,symbol:sym,line:{color:surf,width:1}},
+    hovertemplate:`${name}<br>%{x:.0f} rpm<br>ae %{y:.${dec}f} ${u}<br>ap %{z:.${dec}f} ${u}<extra></extra>`});
+  if(man)traces.push(pt("YOURS",man.rpm,man.ae,Math.min(P.mAp,P.L),ink,"diamond"));
+  if(OPT&&OPT.best)traces.push(pt("MAX MRR",OPT.best.rpm,OPT.best.ae,OPT.ap,cssv("--ok"),"diamond-open"));
+  traces.push(pt("CATALOG",rpmCat,R.ae,Math.min(P.ap,P.L),cssv("--bad"),"circle"),pt("SCALED",best.rpm,R.ae,best.ap,cssv("--dykem"),"square"));
+  const ax=t=>({title:{text:t,font:{color:ink2,size:12}},color:ink2,gridcolor:rule,zerolinecolor:rule,backgroundcolor:surf,showbackground:true,tickfont:{size:10}});
+  const layout={paper_bgcolor:surf,plot_bgcolor:surf,font:{family:"IBM Plex Sans, sans-serif",color:ink},showlegend:false,
+    margin:{l:0,r:0,t:0,b:0},height:Math.min(560,Math.max(380,$("plot3d").clientWidth*0.72)),uirevision:"keep",
+    scene:{xaxis:ax("Spindle speed (rpm)"),yaxis:ax(`Radial width ae (${u})`),zaxis:{...ax(`Stable axial depth (${u})`),range:[0,L(P.L)]},
+      camera:{eye:{x:-1.55,y:-1.55,z:0.95}},aspectmode:"manual",aspectratio:{x:1.4,y:1,z:0.75}}};
+  Plotly.react("plot3d",traces,layout,{displaylogo:false,responsive:true,modeBarButtonsToRemove:["toImage","resetCameraLastSave3d"]});
+  $("note3d").textContent=`Each point on the surface is the deepest stable axial cut for that speed and stepover at ${fmtU("len",P.L)} stickout, capped at the stickout. Under the surface is stable; above it chatters. Drag to rotate, scroll to zoom.`;
+}
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>setTimeout(draw3d,50))}catch(e){}
+new MutationObserver(()=>setTimeout(draw3d,50)).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+/* ---------- max MRR optimizer (end mill) ---------- */
+let OPT=null,tokO=0,tO=0;
+function optParams(){const P=S.mill;return{
+  hT:P.oH??P.fz, vmin:P.oVmin??P.Vc*0.5, vmax:P.oVmax??P.Vc, aeMaxPct:P.oAeMax??100, feedMax:P.oFeedMax,
+  deflOn:P.oDeflOn!==false, dAuto:R&&R.mode==="mill"?R.Fcat/R.ref.k:NaN}}
+function scheduleOpt(){clearTimeout(tO);if(S.mode!=="mill")return;$("optStatus").textContent="Searching…";tO=setTimeout(buildOpt,700)}
+function buildOpt(){
+  if(!R||R.mode!=="mill")return;
+  const my=++tokO,P=R.P,dyn=R.dyn,D=P.D,N=R.cx.N,ap=P.mAp,sf=P.sf,o=optParams();
+  const rlo=Math.max(30,o.vmin*1000/(PI*D)),rhi=Math.min(P.rpmMax,o.vmax*1000/(PI*D));
+  const dmax=o.deflOn?(P.oDefl??o.dAuto):Infinity;
+  if(!(rhi>rlo*1.01)){OPT={err:"The surface speed range is empty, or it sits above your spindle limit. Widen the range or raise the max spindle speed."};renderOpt();return}
+  const fMax=Math.min(1,Math.max(0.05,o.aeMaxPct/100)),nA=16,aes=[];
+  for(let i=0;i<nA;i++)aes.push(D*0.04*Math.pow(fMax/0.04,i/(nA-1)));
+  const curve=[];let best=null,deep=null,i=0;
+  const step=()=>{if(my!==tokO)return;const t0=performance.now();
+    while(i<nA&&performance.now()-t0<40){
+      const ae=aes[i],cxA=ctxOf({...P,ae},"mill"),st=stability(dyn,P.zeta,cxA,P,D,rlo,rhi,72);
+      const r=ae/D,tf=r>=0.5?1:2*Math.sqrt(r*(1-r)),fzChip=Math.min(3*o.hT,o.hT/tf);
+      const F1=forcePeak(ap,1,cxA),fzDef=isFinite(dmax)?dmax*dyn.k/F1:Infinity;
+      let bA=null;
+      const evalAt=(rpm,lim)=>{const okD=sf*lim;if(!deep||okD>deep.a)deep={a:okD,rpm,ae};
+        if(ap>okD)return null;
+        const fzFeed=o.feedMax>0?o.feedMax/(N*rpm):Infinity,fz=Math.min(fzChip,fzDef,fzFeed);
+        const by=fz===fzChip?"chip":fz===fzDef?"defl":"feed";
+        return{rpm,ae,fz,lim,by,mrr:ap*ae*fz*N*rpm,hmax:fz*tf,feed:fz*N*rpm,defl:F1*fz/dyn.k}};
+      for(let j=0;j<st.nG;j++){const c=evalAt(st.lo+j*st.step,st.env[j]);if(c&&(!bA||c.mrr>bA.mrr))bA=c}
+      if(bA){const lo2=Math.max(rlo,bA.rpm-2*st.step),hi2=Math.min(rhi,bA.rpm+2*st.step);
+        for(let j=0;j<=16;j++){const rpm=lo2+(hi2-lo2)*j/16,c=evalAt(rpm,st.limitAt(rpm));if(c&&c.mrr>bA.mrr)bA=c}}
+      curve.push({ae,mrr:bA?bA.mrr:0});
+      if(bA&&(!best||bA.mrr>best.mrr))best=bA;
+      i++}
+    if(i<nA){$("optStatus").textContent=`Searching… ${Math.round(i/nA*100)}%`;setTimeout(step,0);return}
+    OPT={best,deep,curve,ap,rlo,rhi,o,dmax,D};renderOpt();if(typeof draw3d==="function")draw3d();
+  };
+  setTimeout(step,0);
+}
+function renderOptInputs(){
+  if(S.mode!=="mill")return;const P=S.mill,o=optParams(),set=(id,v)=>{const el=$(id);if(el&&document.activeElement!==el)el.value=v};
+  set("oH",(+toD("chip",o.hT)).toFixed(S.units==="in"?4:3));$("oH").step=S.units==="in"?"0.0001":"0.001";
+  set("oVmin",Math.round(toD("speed",o.vmin)));set("oVmax",Math.round(toD("speed",o.vmax)));
+  set("oAeMax",Math.round(o.aeMaxPct));set("oFeedMax",P.oFeedMax>0?Math.round(toD("feed",P.oFeedMax)):"");
+  $("oDeflOn").checked=o.deflOn;
+  set("oDefl",isFinite(P.oDefl??o.dAuto)?(+toD("defl",P.oDefl??o.dAuto)).toFixed(S.units==="in"?4:1):"");
+  $("oDefl").disabled=!o.deflOn;
+  $("optDeflHint").textContent=P.oDefl==null?`Default is what the catalog-length tool deflects at the catalog numbers.`:`Custom value.`;
+}
+function renderOpt(){
+  const card=$("optCard");if(S.mode!=="mill"){card.hidden=true;return}card.hidden=false;
+  renderOptInputs();
+  $("optCap").textContent=`at your ${fmtU("len",S.mill.mAp)} axial depth`;
+  const out=$("optOut"),stat=$("optStatus");
+  if(!OPT){out.innerHTML="";return}
+  stat.textContent="";
+  if(OPT.err){out.innerHTML=`<p class="note">${OPT.err}</p>`;return}
+  const {best,deep,curve,ap,D}=OPT,P=S.mill,N=Math.max(1,Math.round(P.N));
+  if(!best){out.innerHTML=`<div class="mine-head"><span class="pill bad">No stable option</span><p>Nothing in this speed range holds ${fmtU("len",ap)} deep at ${nf(P.sf*100,0)}% of the stability limit. The deepest safe cut found is ${fmtU("len",deep.a)} at ${nf(deep.rpm,0)} rpm with a ${fmtU("len",deep.ae)} stepover. Reduce the axial depth, widen the speed range, or shorten the stickout.</p></div>`;return}
+  const cur=R.man?R.man.mrr:null,gain=cur?best.mrr/cur:null;
+  const why={chip:"chip thickness target",defl:"tip deflection limit",feed:"machine feed rate limit"}[best.by];
+  const atTop=best.ae>=D*Math.min(1,OPT.o.aeMaxPct/100)*0.98,atVmax=best.rpm>=OPT.rhi*0.995;
+  let msg=`Best found: ${fmtU("mrr",best.mrr)}${gain?` (${nf(gain,1)}× your current conditions)`:""}. Chip load is set by the ${why}.`;
+  msg+=atTop?` Stepover is at your maximum.`:` A wider stepover would chatter at any speed in range.`;
+  if(atVmax)msg+=` Speed is at the top of your range.`;
+  const rows=[["Spindle speed",nf(best.rpm,0)+" rpm"],["Surface speed",fmtU("speed",PI*D*best.rpm/1000)],
+    ["Radial width (ae)",`${fmtU("len",best.ae)} <span class="d">${nf(best.ae/D*100,0)}% D</span>`],
+    ["Chip load",fmtU("chip",best.fz)],["Max chip thickness",fmtU("chip",best.hmax)],["Feed rate",fmtU("feed",best.feed)],
+    ["Metal removal",fmtU("mrr",best.mrr)],["Depth vs stability limit",`${nf(ap/best.lim*100,0)}% <span class="d">limit ${fmtLim(best.lim)}</span>`],
+    ["Peak tip deflection",fmtU("defl",best.defl)]];
+  // MRR vs stepover chart
+  const W=640,H=200,ml=56,mr=14,mt=12,mb=36,pw=W-ml-mr,ph=H-mt-mb;
+  const xs=curve.map(c=>c.ae/D*100),ymax=Math.max(...curve.map(c=>c.mrr),cur||0)*1.12||1,xmax=Math.max(...xs);
+  const X=v=>ml+v/xmax*pw,Y=v=>mt+ph-v/ymax*ph;
+  let g=`<rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="var(--paper)"/>`;
+  const yt=niceTicks(0,toD("mrr",ymax),4);for(const t of yt){const y=Y(ymax*t/toD("mrr",ymax));g+=`<line x1="${ml}" x2="${ml+pw}" y1="${y}" y2="${y}" stroke="var(--rule)" stroke-width="0.8"/><text x="${ml-6}" y="${y+4}" text-anchor="end" font-family="var(--f-mono)" font-size="11" fill="var(--ink-3)">${nf(t,t<10&&t%1?1:0)}</text>`}
+  for(const t of niceTicks(0,xmax,5)){const x=X(t);g+=`<text x="${x}" y="${mt+ph+16}" text-anchor="middle" font-family="var(--f-mono)" font-size="11" fill="var(--ink-3)">${nf(t,0)}%</text>`}
+  let d="",area=`M${X(xs[0])} ${Y(0)}`;curve.forEach((c,k)=>{d+=(k?" L":"M")+X(xs[k]).toFixed(1)+" "+Y(c.mrr).toFixed(1);area+=` L${X(xs[k]).toFixed(1)} ${Y(c.mrr).toFixed(1)}`});area+=` L${X(xs[xs.length-1])} ${Y(0)} Z`;
+  g+=`<path d="${area}" fill="var(--dykem-wash)"/><path d="${d}" fill="none" stroke="var(--dykem)" stroke-width="2"/>`;
+  curve.forEach((c,k)=>{g+=`<circle cx="${X(xs[k])}" cy="${Y(c.mrr)}" r="2.5" fill="${c.mrr>0?"var(--dykem)":"var(--bad)"}"/>`});
+  if(cur&&R.man){const cx2=X(Math.min(R.man.ae/D*100,xmax)),cy2=Y(cur);g+=`<path d="M${cx2} ${cy2-8} L${cx2+7.5} ${cy2+5.5} L${cx2-7.5} ${cy2+5.5} Z" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/><text x="${cx2+10}" y="${cy2+4}" font-family="var(--f-display)" font-size="12" letter-spacing=".6" fill="var(--ink)">YOURS</text>`}
+  const bx=X(best.ae/D*100),by=Y(best.mrr),lf=bx>ml+pw-90;g+=`<circle cx="${bx}" cy="${by}" r="6.5" fill="var(--dykem)" stroke="var(--surface)" stroke-width="2"/><text x="${bx+(lf?-10:10)}" y="${Math.max(mt+12,by-8)}" text-anchor="${lf?"end":"start"}" font-family="var(--f-display)" font-size="12.5" letter-spacing=".6" fill="var(--dykem)">MAX MRR</text>`;
+  g+=`<line x1="${ml}" x2="${ml}" y1="${mt}" y2="${mt+ph}" stroke="var(--ink)"/><line x1="${ml}" x2="${ml+pw}" y1="${mt+ph}" y2="${mt+ph}" stroke="var(--ink)"/>`;
+  g+=`<text x="${ml+pw/2}" y="${H-4}" text-anchor="middle" font-family="var(--f-display)" font-size="12" letter-spacing="1" fill="var(--ink-2)">STEPOVER, % OF DIAMETER</text>`;
+  g+=`<text transform="translate(13 ${mt+ph/2}) rotate(-90)" text-anchor="middle" font-family="var(--f-display)" font-size="12" letter-spacing="1" fill="var(--ink-2)">BEST MRR, ${uL("mrr").toUpperCase()}</text>`;
+  out.innerHTML=`<div class="mine-head"><span class="pill dy">Max MRR</span><p>${msg}</p></div>
+    <div class="opt-grid"><div class="tbl-wrap"><table class="rec mine"><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</tbody></table></div>
+    <div><svg viewBox="0 0 ${W} ${H}" class="optchart" role="img" aria-label="Best metal removal rate at each stepover">${g}</svg>
+    <p class="note">Each point is the best stable removal rate at that stepover. Red points have no stable speed in range.</p></div></div>
+    <div class="rowbar"><p class="note">Stable means at or below ${nf(P.sf*100,0)}% of the predicted limit. Verify with a test cut before production.</p><button type="button" class="btn" id="optUse">Use these in your cutting conditions</button></div>`;
+}
+
+/* ---------- events ---------- */
+let raf=0;function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{renderAll();save();schedule3d();scheduleOpt()})}
+$("wmat").innerHTML=WMATS.map(w=>`<option value="${w[0]}">${w[1]}</option>`).join("");
+$("form").addEventListener("input",ev=>{
+  const el=ev.target,P=S[S.mode];
+  if(el.dataset.dkey){const v=parseFloat(el.value);if(!isFinite(v)||v<=0)return;const {Dc,N}=mineDims();
+    if(el.dataset.dkey==="mVc")P.mRpm=toI("speed",v)*1000/(PI*Dc);
+    else P.mFz=toI("feed",v)/(N*P.mRpm);
+    syncMine(el);probe=null;calMsg="";schedule();return}
+  const k=el.dataset.key;if(!k)return;
+  if(el.type==="checkbox"){P[k]=el.checked}
+  else if(el.tagName==="SELECT"){P[k]=el.value;
+    if(k==="wmat"&&WM[el.value][2]!=null){P.Kt=WM[el.value][2];P.Kr=WM[el.value][3];renderInputs()}}
+  else{const v=parseFloat(el.value);if(!isFinite(v))return;const kind=el.dataset.kind;
+    let iv=kind==="int"||kind==="num"?v:toI(kind,v);
+    if(["D","L","Lref","rpmMax","Vc","fz","ap","ks","Kt","zeta","sf","fnM","kM","boreD","mRpm","mFz","mAp","mAe"].includes(k)&&iv<=0)return;
+    if((k==="pitchVar"||k==="pdF")&&iv<0)return;
+    if(k==="pitchVar"&&S[S.mode].N>1)iv=Math.min(iv,0.9*180/S[S.mode].N);
+    if(k==="N")iv=Math.max(1,Math.min(12,Math.round(iv)));
+    if(k==="sf")iv=Math.min(1,Math.max(0.1,iv));
+    if(k==="ae"&&iv<=0)return;
+    P[k]=iv;
+    if(k==="Kt"||k==="Kr"){P.wmat="custom";$("wmat").value="custom"}}
+  syncMine(el);probe=null;calMsg="";schedule();
+});
+document.querySelectorAll("[data-mode]").forEach(b=>b.addEventListener("click",()=>{S.mode=b.dataset.mode;probe=null;renderInputs();schedule()}));
+document.querySelectorAll("[data-units]").forEach(b=>b.addEventListener("click",()=>{S.units=b.dataset.units;renderInputs();schedule()}));
+const chart=$("chart");
+chart.addEventListener("pointermove",hover);
+chart.addEventListener("pointerleave",()=>{const h=$("hov");h&&h.setAttribute("visibility","hidden")});
+chart.addEventListener("click",ev=>{if(!CH)return;const[x,y]=svgPt(ev);if(x<CH.ml||x>CH.ml+CH.pw||y<CH.mt||y>CH.mt+CH.ph)return;
+  const rpm=R.chartSt.lo+(x-CH.ml)/CH.pw*(R.chartSt.hi-R.chartSt.lo),a=(CH.mt+CH.ph-y)/CH.ph*CH.ymax;setProbe(rpm,a)});
+$("viewSeg").addEventListener("click",ev=>{const b=ev.target.closest("[data-view]");if(!b)return;chartView=b.dataset.view;probe=null;renderAll()});
+$("verdict").addEventListener("click",ev=>{if(ev.target.id!=="calBtn")return;calibrate("cat");probe=null;renderInputs();renderAll();save();schedule3d();scheduleOpt()});
+$("mineCard").addEventListener("click",ev=>{if(ev.target.id!=="calMine")return;calibrate("mine");probe=null;renderInputs();renderAll();save();schedule3d();scheduleOpt()});
+$("spots").addEventListener("click",ev=>{const b=ev.target.closest(".spot");if(!b)return;setProbe(+b.dataset.rpm,+b.dataset.a)});
+$("copyBtn").addEventListener("click",()=>{
+  const {best,P,mode,cx}=R,f=mode==="mill"?best.fz*cx.N*best.rpm:best.fz*best.rpm;
+  const txt=`Scaled for ${fmtU("len",P.L)} stickout (${nf(P.L/P.D,1)}xD): ${nf(best.rpm,0)} rpm, ${fmtU("speed",PI*R.Dcut*best.rpm/1000)}, ${mode==="mill"?"chip load":"feed/rev"} ${fmtU("chip",best.fz)}, ${mode==="mill"?"ap":"DOC"} ${fmtU("len",best.ap)}${mode==="mill"?", ae "+fmtU("len",R.ae):""}, feed ${fmtU("feed",f)}`;
+  const btn=$("copyBtn");
+  const done=()=>{btn.textContent="Copied";setTimeout(()=>btn.textContent="Copy scaled values",1600)};
+  try{navigator.clipboard.writeText(txt).then(done,()=>{btn.textContent="Copy failed";setTimeout(()=>btn.textContent="Copy scaled values",1600)})}catch(e){btn.textContent="Copy failed"}
+});
+/* theme */
+const docEl=document.documentElement;
+function curTheme(){const t=docEl.getAttribute("data-theme");if(t==="light"||t==="dark")return t;try{return matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){return"light"}}
+function paintTheme(){const t=curTheme();$("t-light").setAttribute("aria-pressed",t==="light");$("t-dark").setAttribute("aria-pressed",t==="dark")}
+try{const t=localStorage.getItem("stickout-theme");if(t==="light"||t==="dark")docEl.setAttribute("data-theme",t)}catch(e){}
+document.querySelectorAll("[data-theme-btn]").forEach(b=>b.addEventListener("click",()=>{const t=b.dataset.themeBtn;docEl.setAttribute("data-theme",t);try{localStorage.setItem("stickout-theme",t)}catch(e){}paintTheme();renderAll()}));
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",paintTheme)}catch(e){}
+paintTheme();
+$("optIn").addEventListener("input",ev=>{const el=ev.target,k=el.dataset.okey;if(!k)return;const P=S.mill;
+  if(el.type==="checkbox")P[k]=el.checked;
+  else{const v=parseFloat(el.value);
+    if(k==="oFeedMax"&&(el.value===""||v<=0))P[k]=0;
+    else{if(!isFinite(v)||v<=0)return;const kind=el.dataset.kind;P[k]=kind==="num"?Math.min(100,Math.max(5,v)):toI(kind,v)}}
+  OPT=null;renderOpt();save();scheduleOpt()});
+$("optReset").addEventListener("click",()=>{Object.assign(S.mill,{oH:null,oVmin:null,oVmax:null,oDefl:null,oDeflOn:true,oAeMax:100});OPT=null;renderOpt();save();scheduleOpt()});
+$("optOut").addEventListener("click",ev=>{if(ev.target.id!=="optUse"||!OPT||!OPT.best)return;const b=OPT.best;
+  Object.assign(S.mill,{mOn:true,mRpm:b.rpm,mFz:b.fz,mAe:b.ae});probe=null;renderInputs();schedule()});
+/* collapsible cards */
+let folds={};try{folds=JSON.parse(localStorage.getItem("stickout-folds")||"{}")||{}}catch(e){folds={}}
+document.querySelectorAll(".results .card").forEach((card,idx)=>{
+  const h=card.querySelector("h2");if(!h)return;
+  const key=card.id||"card"+idx,name=(h.firstChild&&h.firstChild.textContent||"section").trim();
+  const b=document.createElement("button");b.type="button";b.className="fold";
+  b.innerHTML='<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const paint=()=>{const c=card.classList.contains("collapsed");b.setAttribute("aria-expanded",!c);b.setAttribute("aria-label",(c?"Expand ":"Collapse ")+name);b.title=c?"Expand":"Collapse"};
+  if(folds[key])card.classList.add("collapsed");paint();
+  b.addEventListener("click",()=>{const c=card.classList.toggle("collapsed");folds[key]=c;try{localStorage.setItem("stickout-folds",JSON.stringify(folds))}catch(e){}paint();
+    if(!c&&card.id==="card3d")setTimeout(()=>{try{draw3d();window.Plotly&&Plotly.Plots.resize("plot3d")}catch(e){}},30)});
+  h.insertBefore(b,h.firstChild);
+});
+renderInputs();renderAll();schedule3d();scheduleOpt();
+})();
+</script>
+
+<script>
+if("serviceWorker" in navigator){addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{})})}
+</script>
+</body></html>

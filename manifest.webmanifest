@@ -1,0 +1,17 @@
+{
+  "name": "Stickout Chatter Calculator",
+  "short_name": "Chatter Calc",
+  "description": "Predicts chatter for long end mills and boring bars from stickout and scales catalog feeds and speeds.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#111418",
+  "theme_color": "#111418",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

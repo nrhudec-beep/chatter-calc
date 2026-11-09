@@ -1,15 +1,15 @@
 // Offline cache for the Stickout Chatter Calculator.
 // Bump VERSION whenever index.html changes so phones pick up the new copy.
-const VERSION = "chatter-v1";
+const VERSION = "chatter-v2";
 const LOCAL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/maskable-192.png",
-  "./icons/maskable-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icon-192.png",
+  "./icon-512.png",
+  "./maskable-192.png",
+  "./maskable-512.png",
+  "./apple-touch-icon.png"
 ];
 // Loaded from the web on first launch, then kept for offline use.
 const REMOTE = [
